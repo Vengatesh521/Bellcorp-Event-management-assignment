@@ -7,8 +7,8 @@
 🌐 **Live Application**
 Frontend → [https://bellcorp-event-management-assignment.netlify.app/](https://bellcorp-event-management-assignment.netlify.app/)
 Backend → [https://bellcorp-event-management-assignment.onrender.com/](https://bellcorp-event-management-assignment.onrender.com/)
-
----
+[note!!! Live url perfectly working but render data 1st time takes some seconds Please wait..] 
+--- 
 
 # 1. Overview
 
