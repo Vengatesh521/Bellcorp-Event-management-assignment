@@ -7,6 +7,7 @@ import EventDetails from "./pages/EventDetails";
 import Dashboard from "./pages/Dashboard";
 import RegisterEvent from "./pages/RegisterEvent";
 import CreateEvent from "./pages/CreateEvent";
+import ProtectedRoute from "./components/ProtectedRoute";
 import { AuthProvider } from "./context/AuthContext";
 
 function App() {
@@ -15,13 +16,39 @@ function App() {
       <BrowserRouter>
         <Navbar />
         <Routes>
+          {/* Public Routes */}
           <Route path="/" element={<Events />} />
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
-          <Route path="/register-event/:id" element={<RegisterEvent />} />
-          <Route path="/create-event" element={<CreateEvent />} />
           <Route path="/event/:id" element={<EventDetails />} />
-          <Route path="/dashboard" element={<Dashboard />} />
+
+          {/* Protected Routes */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute>
+                <Dashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/create-event"
+            element={
+              <ProtectedRoute>
+                <CreateEvent />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/register-event/:id"
+            element={
+              <ProtectedRoute>
+                <RegisterEvent />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

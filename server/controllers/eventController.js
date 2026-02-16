@@ -7,25 +7,19 @@ const getEvents = async (req, res) => {
 
     let query = {};
 
-    // 🔎 Text Search (Title + Description using Regex)
     if (search) {
-      query.$or = [
-        { title: { $regex: search, $options: "i" } },
-        { description: { $regex: search, $options: "i" } },
-      ];
+      query.title = { $regex: search, $options: "i" };
     }
 
-    // 📍 Location Filter
     if (location) {
       query.location = { $regex: location, $options: "i" };
     }
 
-    // 🏷 Category Filter
     if (category) {
       query.category = category;
     }
 
-    const events = await Event.find(query).sort({ dateTime: 1 });
+    const events = await Event.find(query).sort({ dateTime: -1 }); // NEWEST FIRST
 
     res.json(events);
   } catch (error) {

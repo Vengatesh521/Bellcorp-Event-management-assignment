@@ -7,88 +7,92 @@ function Dashboard() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [events, setEvents] = useState([]);
-  const [timeLeft, setTimeLeft] = useState({});
+  const [registeredEvents, setRegisteredEvents] = useState([]);
+  const [allEvents, setAllEvents] = useState([]);
 
-  /* ================= FETCH REGISTERED EVENTS ================= */
+  /* ================= FETCH DATA ================= */
   useEffect(() => {
-    const fetchEvents = async () => {
+    const fetchRegistered = async () => {
       try {
         const res = await api.get("/register/my-events", {
           headers: { Authorization: `Bearer ${user.token}` },
         });
-        setEvents(res.data);
+        setRegisteredEvents(res.data);
       } catch (error) {
         console.error(error);
       }
     };
 
-    if (user?.token) fetchEvents();
+    const fetchAllEvents = async () => {
+      try {
+        const res = await api.get("/events");
+        setAllEvents(res.data);
+      } catch (error) {
+        console.error(error);
+      }
+    };
+
+    if (user?.token) {
+      fetchRegistered();
+      fetchAllEvents();
+    }
   }, [user]);
 
-  /* ================= CANCEL REGISTRATION ================= */
+  /* ================= REGISTER ================= */
+  const handleRegister = async (eventId) => {
+    try {
+      await api.post(
+        `/register/${eventId}`,
+        {},
+        { headers: { Authorization: `Bearer ${user.token}` } },
+      );
+
+      const registeredEvent = allEvents.find((e) => e._id === eventId);
+      setRegisteredEvents((prev) => [...prev, registeredEvent]);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  /* ================= CANCEL ================= */
   const handleCancel = async (eventId) => {
     try {
       await api.delete(`/register/${eventId}`, {
         headers: { Authorization: `Bearer ${user.token}` },
       });
 
-      // Remove from UI instantly
-      setEvents((prev) => prev.filter((event) => event._id !== eventId));
+      setRegisteredEvents((prev) =>
+        prev.filter((event) => event._id !== eventId),
+      );
     } catch (error) {
       console.error(error);
     }
   };
 
-  /* ================= COUNTDOWN ================= */
-  useEffect(() => {
-    const interval = setInterval(() => {
-      const updatedTime = {};
-      const now = new Date();
-
-      events.forEach((event) => {
-        const eventDate = new Date(event.dateTime);
-        const diff = eventDate - now;
-
-        if (diff > 0) {
-          updatedTime[event._id] = {
-            days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-            hours: Math.floor((diff / (1000 * 60 * 60)) % 24),
-            minutes: Math.floor((diff / (1000 * 60)) % 60),
-            seconds: Math.floor((diff / 1000) % 60),
-          };
-        }
-      });
-
-      setTimeLeft(updatedTime);
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [events]);
-
-  /* ================= HELPERS ================= */
   const today = new Date();
 
-  const isToday = (date) => {
-    const d = new Date(date);
-    return (
-      d.getDate() === today.getDate() &&
-      d.getMonth() === today.getMonth() &&
-      d.getFullYear() === today.getFullYear()
-    );
-  };
+  /* ================= REGISTERED FILTER ================= */
+  const registeredUpcoming = registeredEvents
+    .filter((event) => new Date(event.dateTime) >= today)
+    .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
 
-  const upcomingEvents = events.filter(
-    (event) => new Date(event.dateTime) >= today,
-  );
+  const registeredPast = registeredEvents
+    .filter((event) => new Date(event.dateTime) < today)
+    .sort((a, b) => new Date(b.dateTime) - new Date(a.dateTime));
 
-  const pastEvents = events.filter((event) => new Date(event.dateTime) < today);
+  /* ================= ALL FUTURE EVENTS ================= */
+  const upcomingEvents = allEvents
+    .filter((event) => new Date(event.dateTime) >= today)
+    .sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
+
+  const isRegistered = (eventId) =>
+    registeredEvents.some((event) => event._id === eventId);
 
   return (
     <div className="min-h-screen bg-gray-100 py-12 px-6">
-      <div className="max-w-6xl mx-auto bg-white p-8 rounded-2xl shadow-lg">
+      <div className="max-w-7xl mx-auto">
         {/* HEADER */}
-        <div className="flex justify-between items-center mb-8">
+        <div className="flex justify-between items-center mb-10">
           <h2 className="text-3xl font-bold text-indigo-600">
             Welcome {user?.user?.name}
           </h2>
@@ -101,111 +105,131 @@ function Dashboard() {
           </button>
         </div>
 
-        {/* ================= YOUR REGISTERED EVENTS ================= */}
-        <h3 className="text-2xl font-semibold mb-6 border-b pb-2">
-          Your Registered Events
-        </h3>
+        {/* ================= MAIN GRID ================= */}
+        <div className="grid lg:grid-cols-3 gap-8">
+          {/* ================= LEFT SIDE ================= */}
+          <div className="lg:col-span-2 bg-white p-8 rounded-2xl shadow-lg">
+            <h3 className="text-2xl font-semibold mb-6 border-b pb-2">
+              Your Registered Events
+            </h3>
 
-        {events.length === 0 && (
-          <p className="text-gray-500 mb-10">
-            You have not registered for any events yet.
-          </p>
-        )}
-
-        {/* ================= UPCOMING ================= */}
-        {upcomingEvents.length > 0 && (
-          <>
-            <h4 className="text-xl font-semibold text-green-600 mb-4">
-              Upcoming / Ongoing ({upcomingEvents.length})
+            {/* UPCOMING */}
+            <h4 className="text-lg font-semibold text-green-600 mb-4">
+              Upcoming
             </h4>
 
-            <div className="space-y-6 mb-10">
-              {upcomingEvents.map((event) => (
-                <div
-                  key={event._id}
-                  className="border rounded-xl p-6 shadow-sm hover:shadow-md transition"
-                >
-                  <h4 className="text-xl font-bold text-indigo-700">
-                    {event.title}
-                  </h4>
-
-                  <p className="text-gray-600 mt-2">
-                    👤 Organizer: {event.organizer || "Admin"}
-                  </p>
-
-                  <p className="text-gray-600">📍 {event.location}</p>
-
-                  <p className="text-gray-600">
-                    📅 {new Date(event.dateTime).toLocaleString()}
-                  </p>
-
-                  <p className="text-gray-600">🏷 {event.category}</p>
-
-                  <p className="text-gray-600">
-                    🎟 Seats Left:{" "}
-                    {event.capacity - event.registeredUsers.length}
-                  </p>
-
-                  {/* STATUS */}
-                  <div className="mt-3 font-medium">
-                    {isToday(event.dateTime) ? (
-                      <span className="text-yellow-600 font-semibold">
-                        🟢 Ongoing
-                      </span>
-                    ) : timeLeft[event._id] ? (
-                      <span className="text-green-600">
-                        ⏳ {timeLeft[event._id].days}d{" "}
-                        {timeLeft[event._id].hours}h{" "}
-                        {timeLeft[event._id].minutes}m{" "}
-                        {timeLeft[event._id].seconds}s left
-                      </span>
-                    ) : null}
-                  </div>
-
-                  {/* CANCEL BUTTON */}
-                  <button
-                    onClick={() => handleCancel(event._id)}
-                    className="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition"
+            {registeredUpcoming.length === 0 ? (
+              <p className="text-gray-500 mb-6">
+                No upcoming registered events.
+              </p>
+            ) : (
+              <div className="space-y-6 mb-10">
+                {registeredUpcoming.map((event) => (
+                  <div
+                    key={event._id}
+                    className="border rounded-xl p-6 hover:shadow-md transition"
                   >
-                    Cancel Registration
-                  </button>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+                    <h4 className="text-xl font-bold text-indigo-700">
+                      {event.title}
+                    </h4>
 
-        {/* ================= PAST EVENTS ================= */}
-        {pastEvents.length > 0 && (
-          <>
-            <h4 className="text-xl font-semibold text-red-600 mb-4">
-              Past Events ({pastEvents.length})
+                    <p className="text-gray-600 mt-2">
+                      📅 {new Date(event.dateTime).toLocaleString()}
+                    </p>
+
+                    <p className="text-gray-600">📍 {event.location}</p>
+
+                    <button
+                      onClick={() => handleCancel(event._id)}
+                      className="mt-4 bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600"
+                    >
+                      Cancel Registration
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* HISTORY */}
+            <h4 className="text-lg font-semibold text-gray-700 mb-4 border-t pt-6">
+              Event History
             </h4>
 
-            <div className="space-y-6">
-              {pastEvents.map((event) => (
-                <div
-                  key={event._id}
-                  className="border rounded-xl p-6 bg-gray-50"
-                >
-                  <h4 className="text-lg font-bold text-gray-700">
-                    {event.title}
-                  </h4>
+            {registeredPast.length === 0 ? (
+              <p className="text-gray-500">No past events.</p>
+            ) : (
+              <div className="space-y-6">
+                {registeredPast.map((event) => (
+                  <div
+                    key={event._id}
+                    className="border rounded-xl p-6 bg-gray-50"
+                  >
+                    <h4 className="text-xl font-bold text-gray-700">
+                      {event.title}
+                    </h4>
 
-                  <p className="text-gray-600 mt-2">📍 {event.location}</p>
+                    <p className="text-gray-600 mt-2">
+                      📅 {new Date(event.dateTime).toLocaleString()}
+                    </p>
 
-                  <p className="text-gray-600">
-                    📅 {new Date(event.dateTime).toLocaleString()}
-                  </p>
+                    <p className="text-gray-600">📍 {event.location}</p>
 
-                  <div className="mt-3 text-red-600 font-semibold">
-                    🔴 Completed
+                    <span className="inline-block mt-4 text-sm bg-gray-300 text-gray-700 px-3 py-1 rounded-full">
+                      Completed
+                    </span>
                   </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* ================= RIGHT SIDE ================= */}
+          <div className="bg-white p-6 rounded-2xl shadow-lg h-fit">
+            <h3 className="text-xl font-semibold mb-6 border-b pb-2 text-green-600">
+              All Upcoming Events
+            </h3>
+
+            {upcomingEvents.length === 0 ? (
+              <p className="text-gray-500">No upcoming events.</p>
+            ) : (
+              <div className="space-y-4">
+                {upcomingEvents.map((event) => (
+                  <div key={event._id} className="border rounded-lg p-4">
+                    <h4 className="font-semibold text-indigo-700">
+                      {event.title}
+                    </h4>
+
+                    <p className="text-sm text-gray-600 mt-1">
+                      {event.description}
+                    </p>
+
+                    <p className="text-sm text-gray-600">
+                      📅 {new Date(event.dateTime).toLocaleDateString()}
+                    </p>
+
+                    <p className="text-sm text-gray-600">📍 {event.location}</p>
+
+                    {isRegistered(event._id) ? (
+                      <button
+                        onClick={() => handleCancel(event._id)}
+                        className="mt-3 bg-red-500 text-white px-3 py-1 rounded-lg hover:bg-red-600"
+                      >
+                        Cancel
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleRegister(event._id)}
+                        className="mt-3 bg-green-600 text-white px-3 py-1 rounded-lg hover:bg-green-700"
+                      >
+                        Register
+                      </button>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
